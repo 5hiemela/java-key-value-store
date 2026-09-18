@@ -12,4 +12,12 @@ public class KVEngine {
     public KVEngine() {
         this.store = new ConcurrentHashMap<>();
     }
+
+    // put - Stores a key-value pair in memory
+    public void put(String key, String value) {
+        if (key == null || value == null) { // Check if key or value is null
+            throw new IllegalArgumentException("Key and value cannot be null");
+        }
+        store.put(key, value);
+    }
 }
