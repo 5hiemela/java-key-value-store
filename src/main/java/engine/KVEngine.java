@@ -36,4 +36,9 @@ public class KVEngine {
         }
         return store.remove(key) != null;
     }
+
+    // containsKey - Checks if a key exists in the store
+    public boolean containsKey(String key) {
+        return key != null && store.containsKey(key);
+    }
 }
