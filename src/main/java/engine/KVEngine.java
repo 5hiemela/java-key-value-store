@@ -46,4 +46,9 @@ public class KVEngine {
     public int size() {
         return store.size();
     }
+
+    // clear - Clears all stored data
+    public void clear() {
+        store.clear();
+    }
 }
