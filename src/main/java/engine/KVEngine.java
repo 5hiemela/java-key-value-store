@@ -20,4 +20,12 @@ public class KVEngine {
         }
         store.put(key, value);
     }
+
+    // get - Retrieves the value associated with a key
+    public Optional<String> get(String key) {
+        if (key == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(store.get(key));
+    }
 }
