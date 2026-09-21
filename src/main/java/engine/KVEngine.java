@@ -41,4 +41,9 @@ public class KVEngine {
     public boolean containsKey(String key) {
         return key != null && store.containsKey(key);
     }
+
+    // size - Returns the total amount of keys stored
+    public int size() {
+        return store.size();
+    }
 }
