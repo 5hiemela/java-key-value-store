@@ -28,4 +28,12 @@ public class KVEngine {
         }
         return Optional.ofNullable(store.get(key));
     }
+
+    // delete - Deletes a key-value pair from memory
+    public boolean delete(String key) {
+        if (key == null) {
+            return false;
+        }
+        return store.remove(key) != null;
+    }
 }
