@@ -5,28 +5,46 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class KVEngine {
 
-    private final ConcurrentHashMap<String, String> store;
+    private final ConcurrentHashMap<String, CacheEntry> store;
 
     // Constructor
-    // Create an empty map in memory whenever a new KVEngine object is created
     public KVEngine() {
         this.store = new ConcurrentHashMap<>();
     }
 
-    // put - Stores a key-value pair in memory
+    // put - Stores a key-value pair that never expires
     public void put(String key, String value) {
-        if (key == null || value == null) { // Check if key or value is null
-            throw new IllegalArgumentException("Key and value cannot be null");
-        }
-        store.put(key, value);
+        put(key, value, -1);
     }
 
-    // get - Retrieves the value associated with a key
+    // put - Stores a key-value pair with a Time-To-Live (TTL) in milliseconds
+    public void put(String key, String value, long ttlMillis) {
+        if (key == null || value == null) {
+            throw new IllegalArgumentException("Key and value cannot be null");
+        }
+
+        long expiryTimestamp = (ttlMillis > 0) ? System.currentTimeMillis() + ttlMillis : -1;
+        store.put(key, new CacheEntry(value, expiryTimestamp));
+    }
+
+    // get - Retrieves value with Lazy Expiration handling
     public Optional<String> get(String key) {
         if (key == null) {
             return Optional.empty();
         }
-        return Optional.ofNullable(store.get(key));
+
+        CacheEntry entry = store.get(key);
+        if (entry == null) {
+            return Optional.empty();
+        }
+
+        // Lazy Expiration Check
+        if (entry.isExpired()) {
+            store.remove(key, entry); // Thread-safe eviction
+            return Optional.empty();
+        }
+
+        return Optional.ofNullable(entry.value());
     }
 
     // delete - Deletes a key-value pair from memory
