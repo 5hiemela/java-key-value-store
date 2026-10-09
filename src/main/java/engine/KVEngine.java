@@ -6,10 +6,17 @@ import java.util.concurrent.ConcurrentHashMap;
 public class KVEngine {
 
     private final ConcurrentHashMap<String, CacheEntry> store;
+    private final AOFLogger aofLogger;
 
-    // Constructor
+    // Default constructor: logs to appendonly.aof
     public KVEngine() {
+        this("appendonly.aof");
+    }
+
+    // Constructor with custom AOF file path
+    public KVEngine(String aofFilePath) {
         this.store = new ConcurrentHashMap<>();
+        this.aofLogger = new AOFLogger(aofFilePath);
     }
 
     // put - Stores a key-value pair that never expires
@@ -25,6 +32,13 @@ public class KVEngine {
 
         long expiryTimestamp = (ttlMillis > 0) ? System.currentTimeMillis() + ttlMillis : -1;
         store.put(key, new CacheEntry(value, expiryTimestamp));
+
+        // Log to AOF file
+        if (ttlMillis > 0) {
+            aofLogger.log("PUT " + key + " " + value + " " + ttlMillis);
+        } else {
+            aofLogger.log("PUT " + key + " " + value);
+        }
     }
 
     // get - Retrieves value with Lazy Expiration handling
@@ -41,6 +55,7 @@ public class KVEngine {
         // Lazy Expiration Check
         if (entry.isExpired()) {
             store.remove(key, entry); // Thread-safe eviction
+            aofLogger.log("DELETE " + key); // Log eviction to keep disk in sync
             return Optional.empty();
         }
 
@@ -52,7 +67,12 @@ public class KVEngine {
         if (key == null) {
             return false;
         }
-        return store.remove(key) != null;
+
+        boolean removed = store.remove(key) != null;
+        if (removed) {
+            aofLogger.log("DELETE " + key);
+        }
+        return removed;
     }
 
     // containsKey - Checks if a key exists in the store
@@ -68,5 +88,6 @@ public class KVEngine {
     // clear - Clears all stored data
     public void clear() {
         store.clear();
+        aofLogger.log("CLEAR");
     }
 }
