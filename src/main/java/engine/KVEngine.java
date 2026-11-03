@@ -1,5 +1,9 @@
 package engine;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -13,10 +17,61 @@ public class KVEngine {
         this("appendonly.aof");
     }
 
-    // Constructor with custom AOF file path
+    // Constructor with custom AOF file path (triggers recovery on startup)
     public KVEngine(String aofFilePath) {
         this.store = new ConcurrentHashMap<>();
         this.aofLogger = new AOFLogger(aofFilePath);
+        loadAof(); // Recover state from disk on startup
+    }
+
+    /**
+     * Reads the AOF file line by line and rebuilds the in-memory state.
+     */
+    private void loadAof() {
+        File file = new File(aofLogger.getFilePath());
+        if (!file.exists()) {
+            return; // No log file yet, start fresh
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) {
+                    continue;
+                }
+
+                String[] parts = line.split(" ", 4);
+                String command = parts[0];
+
+                switch (command) {
+                    case "PUT":
+                        if (parts.length >= 3) {
+                            String key = parts[1];
+                            String value = parts[2];
+                            long expiryTimestamp = (parts.length >= 4) ? Long.parseLong(parts[3]) : -1;
+
+                            // Skip loading if the key expired while the engine was shut down
+                            if (expiryTimestamp == -1 || expiryTimestamp > System.currentTimeMillis()) {
+                                store.put(key, new CacheEntry(value, expiryTimestamp));
+                            }
+                        }
+                        break;
+                    case "DELETE":
+                        if (parts.length >= 2) {
+                            store.remove(parts[1]);
+                        }
+                        break;
+                    case "CLEAR":
+                        store.clear();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to read AOF file during recovery: " + e.getMessage());
+        }
     }
 
     // put - Stores a key-value pair that never expires
@@ -33,9 +88,9 @@ public class KVEngine {
         long expiryTimestamp = (ttlMillis > 0) ? System.currentTimeMillis() + ttlMillis : -1;
         store.put(key, new CacheEntry(value, expiryTimestamp));
 
-        // Log to AOF file
-        if (ttlMillis > 0) {
-            aofLogger.log("PUT " + key + " " + value + " " + ttlMillis);
+        // Log absolute expiry timestamp to AOF file
+        if (expiryTimestamp != -1) {
+            aofLogger.log("PUT " + key + " " + value + " " + expiryTimestamp);
         } else {
             aofLogger.log("PUT " + key + " " + value);
         }
@@ -54,8 +109,8 @@ public class KVEngine {
 
         // Lazy Expiration Check
         if (entry.isExpired()) {
-            store.remove(key, entry); // Thread-safe eviction
-            aofLogger.log("DELETE " + key); // Log eviction to keep disk in sync
+            store.remove(key, entry);
+            aofLogger.log("DELETE " + key);
             return Optional.empty();
         }
 
