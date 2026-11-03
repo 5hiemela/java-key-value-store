@@ -25,4 +25,8 @@ public class AOFLogger {
             System.err.println("Failed to write to AOF file: " + e.getMessage());
         }
     }
+
+    public String getFilePath() {
+        return filePath;
+    }
 }
