@@ -1,6 +1,6 @@
 # Java Key-Value Store
 
-A key-value storage engine built from scratch in Java 21. Inspired by Redis, this engine handles read/write operations, key expiration (TTL), and append-only file (AOF) persistence.
+A key-value storage engine built from scratch in Java 21. This engine handles read/write operations, key expiration (TTL), and append-only file (AOF) persistence.
 
 ## Features
 - **In-Memory Storage:** Fast key-value lookups backed by thread-safe data structures.
